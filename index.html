@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Σε χάκαραν</title>
+<style>
+  :root{
+    --bg:#05060b;
+    --panel:#071028;
+    --neon-mag:#ff4dd2;
+    --neon-cyan:#39e6ff;
+    --alert:#ff2e3a;
+    --muted:rgba(255,255,255,0.06);
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#03040a);font-family:var(--mono);color:#eaf7ff;overflow:hidden}
+
+  /* MATRIX RAIN (subtle, modern) */
+  canvas#rain{ position:fixed; inset:0; z-index:0; opacity:0.22; filter:blur(0.2px); }
+
+  /* CENTRAL CARD */
+  .wrap{ position:relative; z-index:2; height:100vh; display:flex; align-items:center; justify-content:center; padding:28px }
+  .card{
+    width:min(1100px,94vw); max-width:1100px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border:1px solid rgba(255,255,255,0.03);
+    border-radius:14px; padding:28px; display:grid; gap:20px;
+    grid-template-columns: 1fr 360px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    backdrop-filter: blur(8px) saturate(120%);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* BIG HACK TEXT */
+  .left {
+    padding:18px 18px 18px 24px; position:relative;
+  }
+  h1{
+    margin:0; font-size:clamp(28px,6.8vw,84px); line-height:0.9;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg,var(--neon-mag),var(--neon-cyan));
+    -webkit-background-clip:text; background-clip:text; color:transparent; text-transform:uppercase;
+    transform-origin:center;
+  }
+  h1.small { font-size: clamp(14px,2.4vw,20px); color:rgba(255,255,255,0.8); background:none; -webkit-background-clip:none; text-transform:none; margin-top:10px }
+
+  /* GLITCH layers (aggressive but tasteful) */
+  .glitch-wrap{ position:absolute; inset:auto 0 0 0; height:100%; pointer-events:none }
+  .glitch-copy{
+    position:absolute; left:6%; top:18%;
+    font-size:clamp(28px,6.8vw,84px);
+    transform:translate3d(0,0,0);
+    mix-blend-mode:screen; opacity:0.9;
+    filter:blur(0.6px);
+    animation:glitchX 2.4s infinite;
+  }
+  .glitch-copy.c1{ color:var(--neon-mag); clip-path: inset(0 0 65% 0); animation-delay:0.06s }
+  .glitch-copy.c2{ color:var(--neon-cyan); clip-path: inset(60% 0 0 0); animation-delay:0.12s; opacity:0.75 }
+
+  @keyframes glitchX{
+    0%{transform:translate(0,0) skewX(0)}
+    10%{transform:translate(-12px,-6px) skewX(-4deg)}
+    20%{transform:translate(8px,6px) skewX(3deg)}
+    30%{transform:translate(-6px,3px) skewX(-2deg)}
+    40%{transform:translate(6px,-4px) skewX(2deg)}
+    60%{transform:translate(0,0) skewX(0)}
+    100%{transform:translate(0,0) skewX(0)}
+  }
+
+  /* ALERT BADGE */
+  .badge{
+    display:inline-flex; gap:10px; align-items:center; padding:8px 12px; border-radius:999px; background:rgba(255,46,58,0.08); color:var(--alert); border:1px solid rgba(255,46,58,0.12); font-weight:600; font-size:13px; width:max-content;
+  }
+  .badge .dot{ width:10px; height:10px; border-radius:50%; background:var(--alert); box-shadow:0 0 8px rgba(255,46,58,0.5)}
+
+  /* RIGHT PANEL (console + progress) */
+  .right{
+    padding:18px; background: linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.06)); border-radius:10px; border:1px solid rgba(255,255,255,0.02)
+  }
+
+  .console{
+    height:260px; overflow:auto; padding:12px; font-size:13px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00)); border-radius:8px; border:1px solid rgba(255,255,255,0.02);
+  }
+  .console .line{ font-family:var(--mono); color:rgba(230,245,255,0.9); margin-bottom:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis }
+
+  .progress{
+    margin-top:12px;
+  }
+  .pbar{ height:12px; width:100%; background:rgba(255,255,255,0.03); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,0.02)}
+  .fill{ height:100%; width:0%; background:linear-gradient(90deg,var(--neon-mag),var(--neon-cyan)); box-shadow:0 6px 32px rgba(57,230,255,0.06) inset; transition:width 600ms linear }
+
+  .meta{ margin-top:10px; font-size:12px; color:rgba(255,255,255,0.65) }
+
+  /* floating shards / popup */
+  .frag{
+    position:absolute; right:-80px; top:18px; width:380px; transform:rotate(-6deg); pointer-events:none; opacity:0.06;
+    background: linear-gradient(90deg, rgba(255,77,210,0.06), rgba(57,230,255,0.06));
+    height:220px; border-radius:10px; filter:blur(6px)
+  }
+
+  /* scanline & vignette */
+  .scan{ position:absolute; inset:0; background:repeating-linear-gradient(180deg, rgba(255,255,255,0.01) 0 2px, transparent 2px 4px); mix-blend-mode:overlay; opacity:0.12; pointer-events:none; z-index:3 }
+  .vign{ position:absolute; inset:0; box-shadow: inset 0 0 180px rgba(0,0,0,0.6); pointer-events:none; z-index:4 }
+
+  /* responsive */
+  @media (max-width:920px){
+    .card{ grid-template-columns: 1fr; padding:18px }
+    .right{ order:2 }
+    .left{ order:1 }
+    .glitch-copy{ left:8% }
+  }
+</style>
+</head>
+<body>
+<canvas id="rain"></canvas>
+
+<div class="wrap">
+  <div class="card" role="main" aria-live="polite">
+    <div class="left">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="badge" title="breach status"><span class="dot"></span>BREACH</div>
+        <div style="font-size:12px;color:rgba(255,255,255,0.7)">Detected: <strong>ROOT</strong></div>
+        <div style="margin-left:auto;font-size:12px;color:rgba(255,255,255,0.55)">Session: <strong id="session">—</strong></div>
+      </div>
+
+      <h1 id="big">SYSTEM HACKED!</h1>
+      <div class="glitch-wrap" aria-hidden="true">
+        <div class="glitch-copy c1">SYSTEM HACKED!</div>
+        <div class="glitch-copy c2">SYSTEM HACKED!</div>
+      </div>
+
+      <p class="small" style="margin-top:12px;color:rgba(255,255,255,0.7);max-width:70ch">
+        Unauthorized access initiated. Sensitive streams are being exfiltrated. This interface presents a live snapshot of the compromise for demo purposes.
+      </p>
+
+      <div style="display:flex;gap:12px;margin-top:18px;align-items:center">
+        <button id="stopBtn" style="padding:10px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);cursor:pointer">Terminate Session (Esc)</button>
+        <div style="font-size:12px;color:rgba(255,255,255,0.6)">Last seen: <strong id="lastSeen">—</strong></div>
+      </div>
+
+      <div class="frag" aria-hidden="true"></div>
+    </div>
+
+    <div class="right">
+      <div class="console" id="console" aria-live="polite" aria-atomic="false"></div>
+
+      <div class="progress">
+        <div style="font-size:12px;color:rgba(255,255,255,0.8)">Data Exfiltration</div>
+        <div class="pbar" aria-hidden="true"><div class="fill" id="fill"></div></div>
+        <div class="meta">Target: <strong id="target">user_data.db</strong> • Speed: <span id="speed">—</span></div>
+      </div>
+    </div>
+
+    <div class="scan"></div>
+    <div class="vign"></div>
+  </div>
+</div>
+
+<script>
+/* MATRIX RAIN CANVAS -- subtle modern look */
+const canvas = document.getElementById('rain');
+const ctx = canvas.getContext('2d');
+let w = canvas.width = innerWidth;
+let h = canvas.height = innerHeight;
+const cols = Math.floor(w / 20);
+const ypos = Array.from({length: cols}, ()=> Math.random()*h);
+
+function matrixTick(){
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(0,0,0,0.08)';
+  ctx.fillRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(60,255,180,0.14)';
+  ctx.font = '13px monospace';
+  for(let i=0;i<ypos.length;i++){
+    const text = String.fromCharCode(33 + Math.random()*30);
+    const x = i*20;
+    ctx.fillText(text, x, ypos[i]);
+    ypos[i] = ypos[i] > h ? 0 : ypos[i] + 14 + Math.random()*6;
+  }
+}
+let matrixInterval = setInterval(matrixTick, 80);
+addEventListener('resize', ()=>{ w = canvas.width = innerWidth; h = canvas.height = innerHeight; });
+
+/* Console log typing */
+const consoleEl = document.getElementById('console');
+const lines = [
+  '[01:04:12] [AUTH] privilege escalation -> root',
+  '[01:04:13] [SCAN] internal network discovered (7 hosts)',
+  '[01:04:14] [EXPLOIT] CVE-2023-XXXXX used',
+  '[01:04:15] [FS] mounting /var/www/',
+  '[01:04:16] [DB] dumping users -> user_data.db',
+  '[01:04:18] [NET] opening socket -> remote: 185.12.33.44:443',
+  '[01:04:19] [TX] packet stream initiated (encrypted)'
+];
+
+let idx = 0;
+function push(){
+  const el = document.createElement('div');
+  el.className = 'line';
+  const t = new Date().toLocaleTimeString();
+  el.textContent = (Math.random()<0.2? '[!!] ':'') + (lines[idx % lines.length]);
+  consoleEl.appendChild(el);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+  idx++;
+  if(consoleEl.children.length>10) consoleEl.removeChild(consoleEl.firstChild);
+}
+push();
+const logInterval = setInterval(()=>{ if(Math.random()<0.9) push(); }, 700);
+
+/* Progress fill (exfiltration) */
+const fill = document.getElementById('fill');
+const speed = document.getElementById('speed');
+const target = document.getElementById('target');
+const lastSeen = document.getElementById('lastSeen');
+const session = document.getElementById('session');
+
+session.textContent = Math.random().toString(36).slice(2,8).toUpperCase();
+lastSeen.textContent = new Date().toLocaleString();
+
+let percent = 0;
+function advance(){
+  const step = 1 + Math.random()*3;
+  percent = Math.min(100, percent + step);
+  fill.style.width = percent + '%';
+  speed.textContent = (Math.floor(200 + Math.random()*800)) + ' KB/s';
+  if(percent >= 100){
+    pushFinal();
+    clearInterval(progressInterval);
+  }
+}
+function pushFinal(){
+  const el = document.createElement('div');
+  el.className = 'line';
+  el.style.color = 'rgba(255,46,58,0.95)';
+  el.textContent = '[01:04:32] [DONE] exfiltration completed -> ' + target.textContent;
+  consoleEl.appendChild(el);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+const progressInterval = setInterval(advance, 900);
+
+/* spawn noisy fragments (decorative) */
+function spawnFrag(){
+  const d = document.createElement('div');
+  d.className = 'line';
+  d.style.position='fixed';
+  d.style.left = (10 + Math.random()*80) + 'vw';
+  d.style.top = (10 + Math.random()*70) + 'vh';
+  d.style.opacity = 0.06 + Math.random()*0.18;
+  d.style.fontSize = (10 + Math.random()*16) + 'px';
+  d.textContent = Math.random().toString(36).slice(2,8).toUpperCase();
+  d.style.color = Math.random()<0.5? 'var(--neon-mag)' : 'var(--neon-cyan)';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(), 1200 + Math.random()*1600);
+}
+setInterval(spawnFrag, 160);
+
+/* Buttons and keys */
+document.getElementById('stopBtn').addEventListener('click', terminate);
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'Escape') terminate();
+});
+function terminate(){
+  // more dramatic clear with message
+  clearInterval(matrixInterval);
+  clearInterval(logInterval);
+  clearInterval(progressInterval);
+  document.body.innerHTML = `<div style="height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--bg),#000);font-family:var(--mono);color:#fff;padding:20px">
+    <div style="text-align:center">
+      <div style="font-size:22px;margin-bottom:10px">SESSION TERMINATED</div>
+      <div style="opacity:0.8;margin-bottom:18px">Visual session terminated. Refresh the page to restart demo.</div>
+      <div style="font-size:12px;opacity:0.7">${new Date().toLocaleString()}</div>
+    </div>
+  </div>`;
+}
+
+/* small performance guard */
+let fragTimer = setInterval(spawnFrag, 160);
+window.addEventListener('visibilitychange', ()=> {
+  if(document.hidden){ clearInterval(fragTimer); clearInterval(matrixInterval); } 
+  else { fragTimer = setInterval(spawnFrag,160); matrixInterval = setInterval(matrixTick,80); }
+});
+</script>
+</body>
+</html>
